@@ -1762,8 +1762,7 @@ EachClassPlot <- function(long_data, paras, computer){
   if(computer == "mac"){
     quartz() 
   }
-  long_data <- long_data %>% separate(., LipidMolec, into=c("Class", "LipidMolec"), sep = "\\(")
-  long_data$LipidMolec <- long_data$LipidMolec %>% str_remove_all(., "\\)")
+  long_data <- long_data %>% mutate(LipidMolec = str_remove_all(LipidMolec, ".*\\(") %>% str_remove_all(., "\\)")) 
   n_bar <- paras[[1]]
   n_groups <- paras[[2]]
   symbols <- syms(paras[[3]])
