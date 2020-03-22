@@ -3,7 +3,6 @@
 # Notes:  To start, typing command in the console-----> source("FWL_lipidomics_3.1.R") 
 #         or press the source butthon. 
 #         Please make sure Mac users installed XQuartz.
-#         This script is designed as a reference for lipidomics experiment. 
 #         It is based on Niklas and Kenny's previous work (Their work files can be found in folders 
 #         quality_control and statistics_quantification). Acknowledge to Weng's technical 
 #         guidance, Laura's fatty acid saturation analysis project and Sebstian's shadow experiment
@@ -19,7 +18,7 @@ setSessionTimeLimit(cpu = Inf, elapsed = Inf)
 source("FWL_lipidomics_3.2.2.FUNCTIONS.R")
 # Check directory existence, if not then make one
 # all the plots will stored in plot directory and data in the data directory
-dirs <- c("plot", "data", "plot/classes", "plot/QC", "plot/Quantification", "plot/Saturation", "plot/Ether", "plot/Length",
+dirs <- c("plot", "data", "plot/classes/fc", "plot/QC", "plot/Quantification", "plot/Saturation", "plot/Ether", "plot/Length",
           "plot/Volc", "data/Volc","data/QC", "data/Quantification", "data/Saturation", "data/Ether", "data/Length")
 mkdirs(dirs)
 
@@ -125,6 +124,47 @@ if(background_option == "y"){
 }
 
 
+# all_samples <- filtered_lipidomics %>% 
+#   select(Class, contains("MainArea"), -"MainArea[c]") %>% 
+#   group_by(Class)%>% 
+#   summarise_at(vars(sample_raw_list), list(~sum(., na.rm = TRUE))) %>% 
+#   gather(SAMPLES, all_AUC, -Class) %>% 
+#   ungroup() %>% 
+#   rowwise() %>% 
+#   mutate(GROUPS = ifelse(SAMPLES %in% group_info$samples, 
+#                          unlist(group_info[group_info$samples==SAMPLES, 2]), "NA")) %>% 
+#   
+#   mutate(SAMPLES = str_remove_all(SAMPLES, "MainArea\\[") %>% str_remove_all(., "\\]")) %>% 
+#   gather(type, value, -c("Class", "SAMPLES", "GROUPS"))
+# 
+# params <- c("SAMPLES", "value", "type")
+# p1 <- plot_all(data = all_samples, params) +
+#   geom_bar(stat = "identity") +
+#   facet_wrap(~Class, scales = "free") +
+#   theme(axis.text.x = element_text(angle = 45, size = 8, hjust = 1),
+#         axis.line = element_line(size = 0.2)) +
+#   scale_y_continuous(labels = scientific_format(), expand = c(0, 0, 0.2, 0)) +
+#   labs(x = "experiment samples", y = "AUC", title = "aggregated AUC for each sample", fill = "") 
+# print(p1)
+# ggsave("plot/QC/raw_all_samples.pdf", device = "pdf")
+
+# filter negative value
+# filtered_samples <- all_samples %>% mutate(value=ifelse(value<=0, 0, value))
+
+# p2 <- plot_all(data = filtered_samples, params) +
+#   geom_bar(stat = "identity", position = "fill") +
+#   facet_wrap(~Class, scales = "free") +
+#   theme(axis.text.x = element_text(angle = 45, size = 8, hjust = 1),
+#         axis.line = element_line(size = 0.2)) +
+#   scale_y_continuous( expand = c(0, 0, 0.1, 0), labels = scales::percent_format()) +
+#   labs(x = "experiment samples", y = "AUC", title = "AUC for each sample", fill = "") 
+# print(p2)
+
+
+
+
+
+write_csv(filtered_lipidomics, "data/filtered_lipidomics.csv")
 
 
 
