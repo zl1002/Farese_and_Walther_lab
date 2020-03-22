@@ -346,8 +346,8 @@ add_scales <- function(..., scale.params = list()){
     #      expand = c(0, 0, 0.2, 0)),
     list(trans = tn,
          breaks = c(-10^3, 0, 10^3, 10^6, 10^9, 10^12, 10^15, 10^18),
-         labels = c(bquote(-10^3), 0, bquote(10^3), bquote(10^6),
-                    bquote(10^9), bquote(10^12), bquote(10^15), bquote(10^18)),
+         labels = c(expression(paste("-10"^"3")), 0,  expression(paste("10"^"3")), expression(paste("10"^"6")), 
+                    expression(paste("10"^"9")), expression(paste("10"^"12")), expression(paste("10"^"15")), expression(paste("10"^"18"))),
          expand = c(0, 0, 0.2, 0)),
     # scale_params,
     scale.params
@@ -397,18 +397,17 @@ plot_all <- function(data, parameters, se){
     }
     return(p)
   } else{
-    
-    paras <- syms(parameters[1:4])
+    print("here")
+    paras <- syms(parameters)
     # scale_info <- parameters[[5]]
     ranges <- data %>% 
       mutate(bounds=sign(eval(paras[[2]])) * (abs(eval(paras[[2]])) + abs(eval(paras[[4]])))) %>% 
       summarise(max(bounds), min(bounds))
     limits <- sapply(ranges, function(x)sign(x)*10^(ceil(log10(abs(x)), 0)))
     # limits[[2]] <- limits[[2]] - 10^5
-    axis_st <- data %>% filter_at(vars(!!paras[[2]]), any_vars(.<0)) %>% nrow()
+    axis_st <- data  %>% filter(eval(paras[[2]]) < 0) %>% nrow()
     
-    p <- ggplot(data, aes(x = eval(paras[[1]]),
-                          y = eval(paras[[2]]), fill = eval(paras[[3]]))) +
+    p <- ggplot(data, aes(x = eval(paras[[1]]), y = eval(paras[[2]]), fill = eval(paras[[3]]))) +
       #   expand_limits(y = limits) +
       theme_bw() +
       set_theme() +
@@ -421,14 +420,14 @@ plot_all <- function(data, parameters, se){
       #add_scales(scale.params = scale_info)+ 
       #add_scales() +
       # ylim(limits) +
-      scale_fill_manual(values = clPalette1) +
-      geom_se(parameters[1:4], se) 
+      #scale_fill_manual(values = clPalette1) +
+      scale_fill_d3() +
+      geom_se(parameters, se)  
     
     if(axis_st >0){
       p <- p + 
         add_scales(scale.params = list(expand = c(0.02, 0, 0.2, 0))) +
-        geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") +
-        scale_fill_d3()
+        geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed")
     }else{
       p <-  p + add_scales()
     }
@@ -1577,7 +1576,7 @@ ClassPlot <- function(data, parameters){
 
 geom_mean <- function(){
   list(
-    stat_summary(fun.y = "mean", geom = "bar", fill = "grey70"),
+    stat_summary(fun = "mean", geom = "bar", fill = "grey70"),
     stat_summary(fun.data = "mean_cl_normal", geom = "errorbar", width = 0.4)
   )
 }
@@ -1670,9 +1669,13 @@ detect_invalid <- function(data, group_information){
 
 
 plot_fc <- function(data, parameters, se){
+  axis_st <-  data %>% filter(eval(paras[[2]]) < 0) %>% nrow()
   if(length(parameters) == 3){
-    print("HAHA")
     paras <- syms(parameters)
+    ranges <- data %>% 
+      mutate(bounds=sign(eval(paras[[2]])) * (abs(eval(paras[[2]])))) %>% 
+      summarise(max(bounds), min(bounds))
+    limits <- ranges
     p <- ggplot(data, aes(x = eval(paras[[1]]), y = eval(paras[[2]]), fill = eval(paras[[3]]))) +
       theme_bw() +
       set_theme() +
@@ -1687,7 +1690,6 @@ plot_fc <- function(data, parameters, se){
       # ylim(limits) +
       scale_fill_manual(values = clPalette1)
     }else{
-      print("yoyo")
     paras <- syms(parameters)
     ranges <- data %>% 
       mutate(bounds=sign(eval(paras[[2]])) * (abs(eval(paras[[2]])) + abs(eval(paras[[4]])))) %>% 
@@ -1710,16 +1712,27 @@ plot_fc <- function(data, parameters, se){
       # ylim(limits) +
       scale_fill_manual(values = clPalette1) +
       geom_se(parameters, se)
+    
+    # if(max(limits)>1000){
+    #   p <- p + add_scales() + scale_fill_d3()
+    # }else{
+    #   p <- p + scale_y_continuous(expand = c(0, 0, 0.2, 0)) + scale_fill_d3()
+    # }
+    
     } 
-    axis_st <-  data %>% filter(eval(paras[[2]]) < 0) %>% nrow()
+   
     if(axis_st >0){
-      p <- p + 
+      p <- p +
         scale_y_continuous(expand = c(0.02, 0, 0.2, 0)) +
-        geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") +
-        scale_fill_d3()
+        geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") 
+        
     }else{
       p <-  p + scale_y_continuous(expand = c(0, 0, 0.2, 0))
     }
+ 
+    # if(axis_st > 0){
+    #   p <- p + geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") 
+    # }
 }
 
 
@@ -1762,7 +1775,11 @@ EachClassPlot <- function(long_data, paras, computer){
   if(computer == "mac"){
     quartz() 
   }
-  long_data <- long_data %>% mutate(LipidMolec = str_remove_all(LipidMolec, ".*\\(") %>% str_remove_all(., "\\)")) 
+  # long_data <- long_data %>% separate(., LipidMolec, into=c("Class", "LipidMolec"), sep = "\\(")
+  # long_data$LipidMolec <- long_data$LipidMolec %>% str_remove_all(., "\\)")
+  long_data <- long_data %>% 
+    mutate(LipidMolec = str_remove_all(LipidMolec, ".*\\(") %>% 
+             str_remove_all(., "\\)")) 
   n_bar <- paras[[1]]
   n_groups <- paras[[2]]
   symbols <- syms(paras[[3]])
@@ -1775,18 +1792,10 @@ EachClassPlot <- function(long_data, paras, computer){
   #list1 <- paras[[3]][[5]]
   #list2 <- list1
   #list2$expand <- as.call(quote(c(0.02, 0, 0.2, 0)))
-  #print(list2)
   # select lipid class
   classes <- long_data %>% select(Class) %>% unlist() %>% unique()
   counts <- long_data %>% group_by(Class) %>% tally()
-  
-  #if(paras[[3]][2] == "mean"){}
-
-  
-  
- # p4 <- parameters[[4]]
-  # list2 <- paras[[7]]
-  print(length(symbols))
+  long_data <- long_data %>% ungroup()
   #print("\n\n")
   for(i in 1:length(classes)){
     options(warn=-1)
@@ -1795,7 +1804,7 @@ EachClassPlot <- function(long_data, paras, computer){
     observations <- subset(counts, Class == classes[i], n) %>% unlist()
     class_data <- subset(long_data, Class == classes[i]) %>% arrange(., !!molec)
     if(observations <= n_bar){
-     # print("1")
+     print("1")
       axis_st <- class_data %>% filter(eval(symbols[[2]])<0) %>% nrow()
      # p1 <- plot_func(class_data, pars, se = FALSE) 
       #p1 <- plot_func(class_data, pars, se = TRUE) 
@@ -1803,13 +1812,13 @@ EachClassPlot <- function(long_data, paras, computer){
         p1 <- plot_func(class_data, pars) +
           plot_bars(bar.params = list(position=position_dodge(width = 0.6, preserve = "single"), width = 0.6)) 
       }else{
+        class_data <- class_data %>% ungroup()
         p1 <- plot_func(class_data, pars, se = FALSE) +
           plot_bars(bar.params = list(position=position_dodge(width = 0.6, preserve = "single"), width = 0.6)) +
           geom_errorbar(aes(ymin=sign(eval(symbols[[2]]))*abs(eval(symbols[[2]])), ymax=sign(eval(symbols[[2]]))* (abs(eval(symbols[[2]]))+abs(eval(symbols[[4]])))),
                         position=position_dodge(width = .6, preserve = "single"),
                         width = 0.1,
                         size=.2)
-        
       }
       p1 <- p1 +
         # plot_bars(bar.params = list(position=position_dodge(width = 0.6, preserve = "single"), width = 0.7)) +
@@ -1826,10 +1835,10 @@ EachClassPlot <- function(long_data, paras, computer){
         #             width = 0.1,
         #              size=.2) +
         coord_flip() 
-     
+     print("llll")
       print(p1)
       #ggsave(filename = paste(pick_class, ".png", sep=""), path = 'plot/classes', device = "png", width=15, height=15, dpi=300)
-      ggsave(filename = paste(post_name, pick_class,".png", sep=""), path = 'plot/classes', device = "png")
+      ggsave(filename = paste(post_name, pick_class, ".", ".png", sep=""), path = 'plot/classes', device = "png")
       
     }else{
      # print("3")
@@ -1865,9 +1874,8 @@ EachClassPlot <- function(long_data, paras, computer){
             ggtitle(pick_class) +
             coord_flip() 
         
-        
           print(p2)
-          ggsave(filename = paste(pick_class, ".", k+1, post_name,".png", sep=""), path = 'plot/classes', device = "png")
+          ggsave(filename = paste(post_name, pick_class, ".", k+1, ".png", sep=""), path = 'plot/classes', device = "png")
         }else{
         #  print("6")
           ranges <- (n_bar*k+1):observations
@@ -1907,7 +1915,7 @@ EachClassPlot <- function(long_data, paras, computer){
             ggtitle(pick_class) +
             coord_flip() 
           print(p2)
-          ggsave(filename = paste(pick_class, ".", k+1, post_name,".png", sep=""), path = 'plot/classes', device = "png")
+          ggsave(filename = paste(post_name, pick_class, ".", k+1, ".png", sep=""), path = 'plot/classes', device = "png")
         }
       }
     } 
@@ -2150,7 +2158,8 @@ fit$design)", sep = '"')
   name3 <- paste(option[1], "vs.", option[2], ".png", sep = "")
   # plot_name <- readline("Please input the volcano plot name: ")
   ggsave(filename = name3, path = 'plot/Volc/', device = "png")
-  
+  name33 <- paste(option[1], "vs.", option[2], ".pdf", sep = "")
+  ggsave(filename = name33, path = 'plot/Volc/', device = "pdf")
   
   # build mutated data frame
   class_names <- rownames(input) %>% str_extract_all(., "(.+)\\(") %>% str_remove_all(., "\\(")
@@ -2197,6 +2206,8 @@ fit$design)", sep = '"')
   #plot_name <- readline("Please input the volcano plot name: ")
   name4 <- paste(option[1], "vs.", option[2], ".color.png", sep = "")
   ggsave(filename = name4, path = 'plot/Volc/', device = "png") #  width=15, height=15, dpi=300
+  name44 <- paste(option[1], "vs.", option[2], ".color.pdf", sep = "")
+  ggsave(filename = name44, path = 'plot/Volc/', device = "pdf")
   
   lipid_class <- rownames(input_lipids) %>% 
     str_remove_all(., "\\(.*\\)") %>%
@@ -2240,8 +2251,8 @@ fit$design)", sep = '"')
   name5 <- paste(option[1], "vs.", option[2], ".customized.png", sep = "")
   # plot_name <- readline("Please input the volcano plot name: ")
   ggsave(filename = name5, path = 'plot/Volc/', device = "png")
-  
-  
+  name5 <- paste(option[1], "vs.", option[2], ".customized.pdf", sep = "")
+  ggsave(filename = name5, path = 'plot/Volc/', device = "pdf")
   
   ether <- input_lipids 
   ether <- ether %>% 
@@ -2285,7 +2296,9 @@ fit$design)", sep = '"')
   name6 <- paste(option[1], "vs.", option[2], ".ether.png", sep = "")
   # plot_name <- readline("Please input the volcano plot name: ")
   ggsave(filename = name6, path = 'plot/Volc/', device = "png")
-  
+  name6 <- paste(option[1], "vs.", option[2], ".ether.pdf", sep = "")
+  # plot_name <- readline("Please input the volcano plot name: ")
+  ggsave(filename = name6, path = 'plot/Volc/', device = "pdf")
   
 }
 
@@ -2314,26 +2327,37 @@ PlotVolc <- function(input, points, fold_change){
     #       # panel.background = element_blank(),
     #       # legend.title = element_blank(),
     # ) +  
+    # theme(#line=element_blank(),
+    #   axis.line = element_line(colour = "black", size = 1),
+    #   legend.position = "right",
+    #   axis.ticks.length = unit(1.5, "mm"),
+    #   # width of tick marks in mm
+    #   axis.ticks = element_line(size = 1.2),
+    #   axis.text = element_text(size = 16, face = "bold", colour = "black"),
+    #   axis.title = element_text(size = 18),
+    #   legend.text = element_text(size = 15),
+    #   legend.title = element_text(size = 16)
+    #   # panel.border = element_blank(),
+    #   # panel.background = element_blank(),
+    #   # legend.title = element_blank(),
+    # ) +
     theme(#line=element_blank(),
-      axis.line = element_line(colour = "black", size = 1),
+      axis.line = element_line(colour = "black", size = 2),
       legend.position = "right",
-      axis.ticks.length = unit(1.5, "mm"),
+      axis.ticks.length = unit(1.8, "mm"),
       # width of tick marks in mm
-      axis.ticks = element_line(size = 1.2),
-      axis.text = element_text(size = 16, face = "bold", colour = "black"),
-      axis.title = element_text(size = 18),
-      legend.text = element_text(size = 15),
-      legend.title = element_text(size = 16)
-      # panel.border = element_blank(),
-      # panel.background = element_blank(),
-      # legend.title = element_blank(),
-    ) +
+      axis.ticks = element_line(size = 1.5),
+      axis.text = element_text(size = 18, face = "bold", colour = "black"),
+      axis.title = element_text(size = 20),
+      legend.text = element_text(size = 16),
+      legend.title = element_text(size = 18)) +
     geom_label_repel(data = points, 
                     aes(label = rownames(points)), 
-                    size = 3,
+                    size = 6,
                     direction    = "both",
                     hjust        = 0,
                     nudge_x = 0.2,
+                    nudge_y = 0.2,
                     segment.size = 0.2,
                     box.padding = unit(0.35, "lines"),
                     point.padding = unit(0.3, "lines"),
