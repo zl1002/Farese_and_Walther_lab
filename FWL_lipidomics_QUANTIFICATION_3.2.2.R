@@ -5,6 +5,7 @@
 message("\n Mean value for each group is used for quantification visualization.")
 # sum lipid molecues by class
 aggregated_class <- filtered_lipidomics %>% 
+  ungroup() %>% 
   select(Class, sample_raw_list) %>% 
   group_by(Class) %>% 
   summarise_at(sample_raw_list, list(~sum(.)))
@@ -28,12 +29,13 @@ total_plot <- plot_all(total_data, paras1, se=TRUE) +
   labs(title = "Total lipid classes", x = "Lipid Classes", y= "AUC (Area under curve)",
        fill = "Experiment Groups") +
   coord_flip() + 
-  guides(fill = guide_legend(reverse = TRUE)) 
+  guides(fill = guide_legend(reverse = TRUE))  +
+  add_scales()
+  #scale_y_continuous(labels = scientific_format(), expand = c(0, 0, 0.1,0))
 
 print(total_plot)
 # save filtered total class lipid abundance in plot total.class.png
 ggsave(filename="total.class.png", path = 'plot/Quantification/', device = "png")
-
 
 
 ##########################################################################################
@@ -49,10 +51,10 @@ each_group_sd <- cal_lipid_statistics(filtered_lipidomics, group_info,  "sd", gr
 lipid_sd_wide <- each_group_sd[[1]]
 lipid_sd_long <- each_group_sd[[2]]
 # merge mean, sd value and reformat data
-each_class <- left_join(lipid_mean_long, lipid_sd_long) 
+each_class <- left_join(lipid_mean_long, lipid_sd_long) %>% ungroup()
 write_csv(each_class, "data/Quantification/all_lipidmolec.csv")
 message("\nQuantification analysis for individule lipid class")
-par_eachclass <- c("LipidMolec", "mean", "Groups", "sd")
+par_eachclass <- c("LipidMolec", "mean", "Groups", "sd") 
 # par_eachclass <- list("LipidMolec", "mean", "Groups", "sd", scale_params)
 lipidmolecNO_max <- filtered_lipidomics %>% group_by(Class) %>% tally() %>% select(n) %>% unlist() %>% max()
 # setting plot labs titles
@@ -77,8 +79,8 @@ EachClassPlot(each_class, pars, robot)
 # 
 
 ##########################################################################################
-dev.off()
-options(device = "RStudioGD")
+# dev.off()
+# options(device = "RStudioGD")
 ##########################################################################################
 
 
@@ -223,10 +225,11 @@ for(i in 1:fc_times){
   selected_molec <- molec_info_long %>% 
     filter(Groups %in% c(control, contrasts)) %>% 
     ungroup()
-  post_name <- paste0("_", method, "_in_",control, "_", contrasts, "_", i)
+  post_name <- paste0("fc/", control, "_", contrasts, "_", method, "_", i, "_")
   #par_eachclass <- list("LipidMolec", "mean", "Groups", "sd", scales)  
   n <- length(c(control, contrasts))
-  nbar <- 60
+ # nbar <- selected_molec %>% group_by(Class) %>% tally() %>% select(n) %>% unlist() %>% max()
+  nbar <- 80
   pars <- list(nbar, n, par_eachclass, plot_fc, post_name, labs)
   EachClassPlot(selected_molec, pars, robot)
  }
