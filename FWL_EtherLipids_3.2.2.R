@@ -98,8 +98,7 @@ p3 <- plot_all(data = ether_percent_group, params2) +
   scale_fill_simpsons(labels = c("ether", "rest_lipid")) +
   facet_wrap(~Class, scales = "free") +
   set_theme(theme_params = list(axis.text.x = element_text(angle = 45, size = 8, hjust = 1))) +
-  #add_scales() +
-  scale_y_continuous(labels = scientific_format(), expand = c(0, 0, 0.2, 0)) +
+  add_scales() +
   labs(x = "experiment Groups", y = "value", title = "ether in lipid class for each group", fill = "", caption = "This visualization is only for ether lipids here") 
 print(p3)
 ggsave("plot/Ether/ether_group.png", device = "png")
