@@ -102,6 +102,7 @@ plot_all(blank_sample, parameters_bw) +
   #                    labels = c(0, bquote(10^3), bquote(10^6), bquote(10^9), bquote(10^12)),
   #                    expand = c(0, 0, 0.1, 0)) +
   add_scales() +
+ # scale_y_continuous(labels = scientific_format(), expand = c(0,0, 0.1, 0)) +
   coord_flip() 
 # the blank sample plot is stored in background.png
 ggsave(filename = "background.png", path="plot/QC/", device = "png")
