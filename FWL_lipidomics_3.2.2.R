@@ -117,25 +117,25 @@ if(background_option == "y"){
       rowwise() %>% 
       mutate(FLAG_invalid = ifelse(LipidMolec %in% invalid_lipids$LipidMolec, "UN_SAFE", "SAFE")) 
     # filter potential invalid lipid molecules
-    filtered_lipidomics <- filter_invalid(filtered_lipidomics3, group_info, invalid_lipids)
+    filtered_lipidomics <- filter_invalid(filtered_lipidomics3, group_info, invalid_lipids) %>% ungroup()
     subtracted_data <- subtracted_data %>% filter(LipidMolec %in% filtered_lipidomics$LipidMolec)
 }else{
   filtered_lipidomics <- filtered_lipidomics2
 }
 
-
-# all_samples <- filtered_lipidomics %>% 
-#   select(Class, contains("MainArea"), -"MainArea[c]") %>% 
-#   group_by(Class)%>% 
-#   summarise_at(vars(sample_raw_list), list(~sum(., na.rm = TRUE))) %>% 
-#   gather(SAMPLES, all_AUC, -Class) %>% 
-#   ungroup() %>% 
+# 
+# all_samples <- filtered_lipidomics %>%
+#   as.data.frame() %>% 
+#   select(Class, contains("MainArea"), -"MainArea[c]") %>%
+#   group_by(Class)%>%
+#   summarise_at(vars(sample_raw_list), list(~sum(., na.rm = TRUE))) %>%
+#   gather(SAMPLES, all_AUC, -Class) %>%
+#   ungroup() %>%
 #   rowwise() %>% 
-#   mutate(GROUPS = ifelse(SAMPLES %in% group_info$samples, 
-#                          unlist(group_info[group_info$samples==SAMPLES, 2]), "NA")) %>% 
-#   
-#   mutate(SAMPLES = str_remove_all(SAMPLES, "MainArea\\[") %>% str_remove_all(., "\\]")) %>% 
-#   gather(type, value, -c("Class", "SAMPLES", "GROUPS"))
+#   mutate(GROUPS = ifelse(SAMPLES %in% group_info$samples,
+#                          unlist(group_info[group_info$samples==SAMPLES, 2]), "NA")) %>%
+#   mutate(SAMPLES = str_remove_all(SAMPLES, "MainArea\\[") %>% str_remove_all(., "\\]")) %>%
+#   gather(type, value, -c("Class", "SAMPLES", "GROUPS")) 
 # 
 # params <- c("SAMPLES", "value", "type")
 # p1 <- plot_all(data = all_samples, params) +
@@ -144,7 +144,7 @@ if(background_option == "y"){
 #   theme(axis.text.x = element_text(angle = 45, size = 8, hjust = 1),
 #         axis.line = element_line(size = 0.2)) +
 #   scale_y_continuous(labels = scientific_format(), expand = c(0, 0, 0.2, 0)) +
-#   labs(x = "experiment samples", y = "AUC", title = "aggregated AUC for each sample", fill = "") 
+#   labs(x = "experiment samples", y = "AUC", title = "aggregated AUC for each sample", fill = "")
 # print(p1)
 # ggsave("plot/QC/raw_all_samples.pdf", device = "pdf")
 
