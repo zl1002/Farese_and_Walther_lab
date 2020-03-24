@@ -201,7 +201,7 @@ ggsave("plot/Length/fa_length_gr.svg", device = "svg")
 
 
 control <- check_group(group_names, "control")
-message("Please choose normalization method from mean or median")
+message("Please choose normalization method from mean or median for experiment group.")
 method <- retype_choice("MEAN/MEDIAN")
 control_names <- paste0(control, "_", method)
 by_group <- c("Class", "length_type")
@@ -242,7 +242,7 @@ ggsave("plot/Length/fa_length_normalized.svg", device = "svg")
 
 
 # for individuale chains
-message("Please choose normalization method from mean/median.") 
+message("Please choose normalization method from mean/median for chains in individule lipid molecules.") 
 method <- retype_choice("MEAN/MEDIAN")
 control <- check_group(group_names, "control")
 control_nm <- paste0(control, "_", method)
