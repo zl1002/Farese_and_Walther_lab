@@ -78,6 +78,23 @@ filtered_lipidomics1 <- lipid_select %>%
 # the filtered raw data is stored in data/filtered.raw.data.csv
 write.csv(filtered_lipidomics1, "data/QC/filtered.raw.data.csv")
 
+
+
+##########################################################################################
+# Fix duplicated lipid molecules
+##########################################################################################
+# detect same lipid molecules with different retention time
+# Filter the lipid molecule contains same name but different retention time based on your criteria  
+# all the dupliated molecules will be stored in dupliates.csv
+duplicate_molecs <- detect_duplicates(filtered_lipidomics1)
+# if move on, fix method for duplicated molecules
+paras <- c("Class", "LipidMolec", "BaseRt", "MainIon")
+
+filtered_lipidomics2  <- filter_duplicate(duplicate_molecs, filtered_lipidomics1, paras)
+
+
+
+
 #filtered_lipidomics1 <- filtered_lipidomics1 %>% separate(., LipidIon, into=c("LipidMolec", "MainIon"), sep = "\\)")
 
 ##########################################################################################
@@ -85,14 +102,14 @@ write.csv(filtered_lipidomics1, "data/QC/filtered.raw.data.csv")
 ##########################################################################################
 # plot the background information of the blank sample c
 
-blank_sample <-filtered_lipidomics1 %>% 
+blank_sample <-filtered_lipidomics2 %>% 
   select(Class, contains("MainArea[c]")) %>% 
   group_by(Class) %>% 
   summarise_all(.funs=sum)
 parameters_bw <- colnames(blank_sample) <- c("class", "value")
 
 # plot the blank sample
-plot_all(blank_sample, parameters_bw) +
+p1 <- plot_all(blank_sample, parameters_bw) +
   geom_bar(position="dodge", stat="identity") +
   labs(x = "Lipid Classes", 
        y = (bquote("Fold change: " ~ log[10]~"("~AUC~")")), 
@@ -104,6 +121,7 @@ plot_all(blank_sample, parameters_bw) +
   add_scales() +
  # scale_y_continuous(labels = scientific_format(), expand = c(0,0, 0.1, 0)) +
   coord_flip() 
+print(p1)
 # the blank sample plot is stored in background.png
 ggsave(filename = "background.png", path="plot/QC/", device = "png")
 
@@ -113,11 +131,11 @@ ggsave(filename = "background.png", path="plot/QC/", device = "png")
 ##########################################################################################
 message("\nThe info below and summary plot will show the summary information of classes after filtering the data")
 # two methods check how many lipids passed filtering
-print(describe(filtered_lipidomics1$Class))
-filtered_lipidomics1 %>% group_by(Class) %>% summarise(lipid_class_num = n()) %>% select(Class, lipid_class_num) %>% arrange(lipid_class_num)  %>% formattable(.)
+print(describe(filtered_lipidomics2$Class))
+filtered_lipidomics2 %>% group_by(Class) %>% summarise(lipid_class_num = n()) %>% select(Class, lipid_class_num) %>% arrange(lipid_class_num)  %>% formattable(.)
 
 # get lipid class proportion information
-prop_data <- filtered_lipidomics1
+prop_data <- filtered_lipidomics2
 class(prop_data$Class) <- factor(prop_data$Class)
 prop_data <- prop_data %>% 
   group_by(Class) %>% 
@@ -125,7 +143,7 @@ prop_data <- prop_data %>%
   mutate(prop = count/sum(count))
 
 # plot lipid class proportion information
-plot_all(prop_data, c("Class", "prop")) +
+p2 <- plot_all(prop_data, c("Class", "prop")) +
   #  ggplot(prop_data, aes(x = reorder(Class, prop), y = prop)) +
   theme_bw() + 
   set_theme() +
@@ -135,6 +153,7 @@ plot_all(prop_data, c("Class", "prop")) +
   xlab("classes")+ ylab("Relative frequencies (%)")  +
   coord_flip() + 
   scale_fill_grey()
+print(p2)
 ggsave(filename = "prop_summary.png", path = 'plot/QC/', device = "png")
 
 # save lipid class summary information into file proportion_classes.csv in data directory
@@ -148,7 +167,7 @@ prop_data %>%
 # retention time analysis
 ##########################################################################################
 ###  Abundance vs. retention time for all samples
-retention_data <- filtered_lipidomics1 %>% 
+retention_data <- filtered_lipidomics2 %>% 
   select(contains("MainArea[s"), BaseRt, Class) %>% 
   gather(sample, MainArea, -c(BaseRt, Class))
 n_classes <- retention_data$Class %>% unique() %>% length()
@@ -164,16 +183,17 @@ ggsave(filename = "all_retention.png", path = 'plot/', device = "png",
 # mark odd chains
 ##########################################################################################
 # mark classes which contain the odd chains classes 
-odd_index <- filtered_lipidomics1$LipidMolec %>%
+odd_index <- filtered_lipidomics2$LipidMolec %>%
   str_locate(., "(\\d[13579]:)|([13579]:)")
-odd_chains <- filtered_lipidomics1[unique(which(!is.na(odd_index), arr.ind=TRUE)[,1]), ]
+odd_chains <- filtered_lipidomics2[unique(which(!is.na(odd_index), arr.ind=TRUE)[,1]), ]
 # store odd chains in file odd_chains
 write_csv(odd_chains, "data/QC/odd_chains.csv")
-percent_odd <- nrow(odd_chains)/nrow(filtered_lipidomics1) 
+percent_odd <- nrow(odd_chains)/nrow(filtered_lipidomics2) 
 percent_odd <- percent(percent_odd*100/100)
 # get odd chain percentage in the raw data
 message("\nThere are ", nrow(odd_chains), " lipid molecules contain odd chains. ",
         "\nThe odd chain of fatty acids percent is ", percent_odd, " in total.")
+
 message("The odd chain information is stored in odd_chains.csv.")
 
 ##########################################################################################
@@ -201,19 +221,6 @@ if(nrow(TG17) != 0){
   print(tp17)
   ggsave(filename = "TG17_all.png", path="plot/", device="png")
 }
-
-
-##########################################################################################
-# Fix duplicated lipid molecules
-##########################################################################################
-# detect same lipid molecules with different retention time
-# Filter the lipid molecule contains same name but different retention time based on your criteria  
-# all the dupliated molecules will be stored in dupliates.csv
-duplicate_molecs <- detect_duplicates(filtered_lipidomics1)
-# if move on, fix method for duplicated molecules
-paras <- c("Class", "LipidMolec", "BaseRt", "MainIon")
-
-filtered_lipidomics2  <- filter_duplicate(duplicate_molecs, filtered_lipidomics1, paras)
 
 
 
