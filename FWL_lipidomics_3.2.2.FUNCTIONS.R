@@ -25,7 +25,7 @@ list.of.packages <- c( "FactoMineR", "factoextra", "scales", "magrittr", "ggrepe
                        "stringr", "readxl", "RCy3", "igraph", "tidyverse", "dplyr","viridis", 
                        "igraph", "network", "visNetwork", "extrafont", "ggforce", "kableExtra", 
                        "ggpubr", "wesanderson", "formattable", "ggsci", "plotly", "htmlwidgets", 
-                       "gridExtra", "grid", "DT")
+                       "gridExtra", "grid", "DT", "readr")
 need.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[, "Package"])]
 if(length(need.packages) > 0) BiocManager::install(need.packages)
 
@@ -90,6 +90,11 @@ tn <- trans_new("custom_log_scale",
                 domain = c(-Inf, Inf)
 )
 
+tn2 <- trans_new("custom_log_scale",
+                 transform = function(x)ifelse(x!= 0, sign(x)*log2(abs(x)), 0),
+                 inverse = function(x) ifelse(x != 0, sign(x)*2^abs(x), 0),
+                 domain = c(-Inf, Inf)
+)
 
 
 ##########################################################################################
@@ -265,7 +270,7 @@ geom_se <- function(parameters, se){
   list(
     if(se)
       geom_errorbar(aes(ymin=sign(eval(p2))*abs(eval(p2)), 
-                        ymax=sign(eval(p2))* (abs(eval(p2)) + eval(p4))),
+                        ymax=sign(eval(p2))* (abs(eval(p2)) + abs(eval(p4)))),
                     position=position_dodge(preserve = "single", .9),
                     width = 0.1,
                     size=.2) 
@@ -397,7 +402,6 @@ plot_all <- function(data, parameters, se){
     }
     return(p)
   } else{
-    print("here")
     paras <- syms(parameters)
     # scale_info <- parameters[[5]]
     ranges <- data %>% 
@@ -406,7 +410,6 @@ plot_all <- function(data, parameters, se){
     limits <- sapply(ranges, function(x)sign(x)*10^(ceil(log10(abs(x)), 0)))
     # limits[[2]] <- limits[[2]] - 10^5
     axis_st <- data  %>% filter(eval(paras[[2]]) < 0) %>% nrow()
-    
     p <- ggplot(data, aes(x = eval(paras[[1]]), y = eval(paras[[2]]), fill = eval(paras[[3]]))) +
       #   expand_limits(y = limits) +
       theme_bw() +
@@ -1581,7 +1584,7 @@ geom_mean <- function(){
   )
 }
 
-ggplot(mpg, aes(class, cty)) + geom_mean()
+
 
 
 
@@ -1649,13 +1652,13 @@ detect_invalid <- function(data, group_information){
     
     # transform all values in a groun into NA if the negative percentage is over 50%
     # transform all negative values into NA
-    dt2 <- data %>% transmute_at(vars(samples), list(~ifelse(eval(sym(!!names[4])) > 0.5 | . < 0 , NA, .)))
+    dt2 <- data %>% transmute_at(vars(all_of(samples)), list(~ifelse(eval(sym(!!names[4])) > 0.5 | . < 0 , NA, .)))
     dt1 <- cbind(dt1, dt2)
   }
   # transform all negative values into NA and format percentage value
   dt3 <- data %>%
     rowwise()%>%
-    mutate_at(vars(sample_list), list(~ifelse(. < 0, NA, .))) %>%
+    mutate_at(vars(all_of(samples)), list(~ifelse(. < 0, NA, .))) %>%
     mutate_at(vars(contains("percent")), list(~scales::percent(.)))
   
   # get information for all values into NA in a group
@@ -1667,73 +1670,162 @@ detect_invalid <- function(data, group_information){
 
 
 
+# 
+# plot_fc <- function(data, parameters, se){
+#   print("abc")
+#   paras <- syms(parameters)
+#   if(length(parameters) == 3){
+#     ranges <- data %>% 
+#       mutate(bounds=sign(eval(paras[[2]])) * (abs(eval(paras[[2]])))) %>% 
+#       summarise(max(bounds, na.rm = TRUE), min(bounds, na.rm = TRUE))
+#     limits <- ranges
+#     p <- ggplot(data, aes(x = eval(paras[[1]]), y = eval(paras[[2]]), fill = eval(paras[[3]]))) +
+#       theme_bw() +
+#       set_theme() +
+#       # theme(axis.line = element_line(colour = "black", 
+#       #                                size = .15),
+#       #       plot.title = element_text(hjust = 0.5),
+#       #       axis.text.y = element_text(angle = 30, hjust=1, size = 6),
+#       #       axis.text.x = element_text(size = 6),
+#       #       axis.ticks = element_line(size = .8),
+#       #       axis.ticks.length = unit(1, "mm")) +
+#       # scale_y_continuous(expand = c(0, 0, 0.2, 0)) +
+#       # ylim(limits) +
+#       scale_fill_manual(values = clPalette1)
+#     }else{
+#       print("haha")
+#     ranges <- data %>% 
+#       mutate(bounds=sign(eval(paras[[2]])) * (abs(eval(paras[[2]])) + abs(eval(paras[[4]])))) %>% 
+#       summarise(max(bounds, na.rm = TRUE), min(bounds, na.rm = TRUE))
+#     limits <- ranges
+#     
+#       p <- ggplot(data, aes(x = reorder(eval(paras[[1]]), eval(paras[[2]])), 
+#                             y = eval(paras[[2]]), fill = eval(paras[[3]]))) +
+#         #   expand_limits(y = limits) +
+#         theme_bw() +
+#         set_theme() +
+#         # theme(axis.line = element_line(colour = "black", 
+#         #                                size = .2),
+#         #       plot.title = element_text(hjust = 0.5),
+#         #       axis.text.y = element_text(angle = 30, hjust=1, size = 6),
+#         #       axis.text.x = element_text(size = 6),
+#         #       axis.ticks = element_line(size = .8),
+#         #       axis.ticks.length = unit(1, "mm")) +
+#         # scale_y_continuous(expand = c(0, 0, 0.2, 0)) +
+#         # ylim(limits) +
+#         scale_fill_manual(values = clPalette1) +
+#         geom_se(parameters, se)
+#    
+#     
+#     
+#     } 
+#   print(
+#     "yyy"
+#   )
+#     axis_st <-  data %>% ungroup() %>% filter(eval(paras[[2]]) < 0) %>% nrow()
+#     if(axis_st >0){
+#       if(max(limits) < 200){
+#         p <- p +
+#           scale_y_continuous(expand = c(0.02, 0, 0.2, 0)) +
+#           geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") 
+#       }else{
+#         p <- p +
+#           #scale_y_continuous(expand = c(0.02, 0, 0.2, 0), labels = scientific_format()) +
+#           #add_scales(scale.params = list(breaks = c(0, 10, 100, 1000, 10000) ,labels = c(),))
+#           scale_y_continuous(trans = tn2, 
+#                              breaks = c(0, 4, 16, 256, 2^16),
+#                              labels = c(0, expression(paste("2"^"2")), expression(paste("2"^"4")), 
+#                                         expression(paste("2"^"8")), expression(paste("2"^"16"))),
+#                              expand = c(0.02, 0, 0.2, 0)) +
+#           geom_text(aes(label = "log2 transformed", x= Inf, y = Inf), hjust = -1, vjust = -1) +
+#           geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") 
+#       }
+#     
+#         
+#     }else{
+#       if(max(limits) < 200){
+#         p <-  p + scale_y_continuous(expand = c(0, 0, 0.2, 0))
+#       }else{
+#         p <-  p + 
+#           geom_text(aes(label = "log2 transformed", x= Inf, y = Inf), hjust = -1, vjust = -1) +
+#           scale_y_continuous(trans = tn2, 
+#                              breaks = c(0, 4, 16, 256, 2^16),
+#                              labels = c(0, expression(paste("2"^"2")), expression(paste("2"^"4")), 
+#                                         expression(paste("2"^"8")), expression(paste("2"^"16"))),
+#                              expand = c(0, 0, 0.2, 0)) 
+#       }
+#      
+#     }
+#     if(axis_st >0){
+#       p <- p + 
+#         add_scales(scale.params = list(expand = c(0.02, 0, 0.2, 0))) +
+#         geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed")
+#     }else{
+#       p <-  p + add_scales()
+#     }
+#     # if(axis_st > 0){
+#     #   p <- p + geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") 
+#     # }
+# }
+
+
+
+
+
+
 
 plot_fc <- function(data, parameters, se){
-  axis_st <-  data %>% filter(eval(paras[[2]]) < 0) %>% nrow()
+  print("abc")
+  paras <- syms(parameters)
   if(length(parameters) == 3){
-    paras <- syms(parameters)
     ranges <- data %>% 
       mutate(bounds=sign(eval(paras[[2]])) * (abs(eval(paras[[2]])))) %>% 
-      summarise(max(bounds), min(bounds))
+      summarise(max(bounds, na.rm = TRUE), min(bounds, na.rm = TRUE))
     limits <- ranges
     p <- ggplot(data, aes(x = eval(paras[[1]]), y = eval(paras[[2]]), fill = eval(paras[[3]]))) +
       theme_bw() +
-      set_theme() +
-      theme(axis.line = element_line(colour = "black", 
-                                     size = .15),
-            plot.title = element_text(hjust = 0.5),
-            axis.text.y = element_text(angle = 30, hjust=1, size = 6),
-            axis.text.x = element_text(size = 6),
-            axis.ticks = element_line(size = .8),
-            axis.ticks.length = unit(1, "mm")) +
+      set_theme()
+      # theme(axis.line = element_line(colour = "black", 
+      #                                size = .15),
+      #       plot.title = element_text(hjust = 0.5),
+      #       axis.text.y = element_text(angle = 30, hjust=1, size = 6),
+      #       axis.text.x = element_text(size = 6),
+      #       axis.ticks = element_line(size = .8),
+      #       axis.ticks.length = unit(1, "mm")) +
       # scale_y_continuous(expand = c(0, 0, 0.2, 0)) +
       # ylim(limits) +
-      scale_fill_manual(values = clPalette1)
-    }else{
-    paras <- syms(parameters)
+      #scale_fill_manual(values = clPalette1)
+  
+  }else{
     ranges <- data %>% 
       mutate(bounds=sign(eval(paras[[2]])) * (abs(eval(paras[[2]])) + abs(eval(paras[[4]])))) %>% 
-      summarise(max(bounds), min(bounds))
+      summarise(max(bounds, na.rm = TRUE), min(bounds, na.rm = TRUE))
     limits <- ranges
-    # limits[[2]] <- limits[[2]] - 10^5
-    p <- ggplot(data, aes(x = reorder(eval(paras[[1]]), eval(paras[[2]])), 
-                          y = eval(paras[[2]]), fill = eval(paras[[3]]))) +
-      #   expand_limits(y = limits) +
-      theme_bw() +
-      set_theme() +
-      theme(axis.line = element_line(colour = "black", 
-                                     size = .2),
-            plot.title = element_text(hjust = 0.5),
-            axis.text.y = element_text(angle = 30, hjust=1, size = 6),
-            axis.text.x = element_text(size = 6),
-            axis.ticks = element_line(size = .8),
-            axis.ticks.length = unit(1, "mm")) +
-      # scale_y_continuous(expand = c(0, 0, 0.2, 0)) +
-      # ylim(limits) +
-      scale_fill_manual(values = clPalette1) +
-      geom_se(parameters, se)
+    p <- ggplot(data, aes(x = eval(paras[[1]]), y = eval(paras[[2]]), fill = eval(paras[[3]]))) +
+        theme_bw() +
+        set_theme() +
+       # scale_fill_manual(values = clPalette1) +
+        geom_se(parameters, se)
     
-    # if(max(limits)>1000){
-    #   p <- p + add_scales() + scale_fill_d3()
-    # }else{
-    #   p <- p + scale_y_continuous(expand = c(0, 0, 0.2, 0)) + scale_fill_d3()
-    # }
     
-    } 
-   
-    if(axis_st >0){
+  } 
+  axis_st <-  data %>% ungroup() %>% filter(eval(paras[[2]]) < 0) %>% nrow()
+  print(axis_st)
+  print("check")
+  if(axis_st > 0){
       p <- p +
         scale_y_continuous(expand = c(0.02, 0, 0.2, 0)) +
-        geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") 
-        
-    }else{
-      p <-  p + scale_y_continuous(expand = c(0, 0, 0.2, 0))
-    }
- 
-    # if(axis_st > 0){
-    #   p <- p + geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") 
-    # }
+        geom_hline(yintercept = 0, color = "black",size = 1, linetype = "dashed") +
+        scale_fill_npg()
+  }else{
+      p <-  p + scale_y_continuous(expand = c(0, 0, 0.2, 0)) +
+        scale_fill_npg()
+
+  }
+  return(p)
 }
+
+
 
 
 
@@ -1827,6 +1919,9 @@ EachClassPlot <- function(long_data, paras, computer){
         labs_info +
         #   add_scales(scale.params = list1) +
         ggtitle(pick_class) +
+        theme(plot.title = element_text(hjust = 0.5),
+              axis.text.y = element_text(angle = 30, hjust=1, size = 7, face = "bold")) + 
+        guides(fill = guide_legend(reverse=TRUE)) +
         # geom_se(se.params = list(position=position_dodge(width = .6, preserve = "single"),
         #                          width = 0.1,
         #                          size=.2)) +
@@ -1834,11 +1929,13 @@ EachClassPlot <- function(long_data, paras, computer){
         #             position=position_dodge(width = .6, preserve = "single"),
         #             width = 0.1,
         #              size=.2) +
+        scale_fill_npg() +
         coord_flip() 
      print("llll")
       print(p1)
       #ggsave(filename = paste(pick_class, ".png", sep=""), path = 'plot/classes', device = "png", width=15, height=15, dpi=300)
       ggsave(filename = paste(post_name, pick_class, ".", ".png", sep=""), path = 'plot/classes', device = "png")
+      ggsave(filename = paste(post_name, pick_class, ".", ".pdf", sep=""), path = 'plot/classes', device = "pdf")
       
     }else{
      # print("3")
@@ -1870,12 +1967,17 @@ EachClassPlot <- function(long_data, paras, computer){
             # plot_bars(bar.params = list(position=position_dodge(width = 0.9, preserve = "single"), width = 0.9)) +
             labs_info +
             # add_scales(scale.params = list1) +
-            
+            guides(fill = guide_legend(reverse=TRUE)) +
             ggtitle(pick_class) +
+            theme(plot.title = element_text(hjust = 0.5),
+                  axis.text.y = element_text(angle = 30, hjust=1, size = 7, face = "bold")) + 
+            scale_fill_npg() +
             coord_flip() 
         
           print(p2)
           ggsave(filename = paste(post_name, pick_class, ".", k+1, ".png", sep=""), path = 'plot/classes', device = "png")
+          ggsave(filename = paste(post_name, pick_class, ".", k+1, ".pdf", sep=""), path = 'plot/classes', device = "pdf")
+          
         }else{
         #  print("6")
           ranges <- (n_bar*k+1):observations
@@ -1913,9 +2015,14 @@ EachClassPlot <- function(long_data, paras, computer){
           p2 <- p2 + 
             labs_info +
             ggtitle(pick_class) +
+            theme(plot.title = element_text(hjust = 0.5),
+                  axis.text.y = element_text(angle = 30, hjust=1, size = 7, face = "bold")) + 
+            guides(fill = guide_legend(reverse=TRUE)) +
+            scale_fill_npg() +
             coord_flip() 
           print(p2)
           ggsave(filename = paste(post_name, pick_class, ".", k+1, ".png", sep=""), path = 'plot/classes', device = "png")
+          ggsave(filename = paste(post_name, pick_class, ".", k+1, ".pdf", sep=""), path = 'plot/classes', device = "pdf")
         }
       }
     } 
@@ -2575,7 +2682,7 @@ impute_not <- function(condition, data, sample_list){
 
 filter_invalid <- function(data, group_info, invalid_data){
   if(nrow(invalid_data) != 0){
-    sample_list <- group_info$samples
+    sample_list <- group_info[, 1] %>% unlist
     # data negative and empty value percent information 
     neg_percent_info <- detect_invalid(invalid_data, group_info) 
     neg_percent <- neg_percent_info[[1]]
@@ -2603,7 +2710,7 @@ filter_invalid <- function(data, group_info, invalid_data){
     write_csv(negs_all, "data/imputeNA.csv")
     message("\nType 1 if you would like the pipleline to proceed with this function \nType 2 if you prefer to exlcude certain lipid molecules for fold change analysis ")
     option <- retype_choice("1/2")
-    filtered_negs <- negs_all %>% filter_at(sample_list, any_vars(!is.na(.)))
+    filtered_negs <- negs_all %>% filter_at(vars(all_of(sample_list)), any_vars(!is.na(.)))
     if(option == "2"){
       # this step need manually editting the invalid lipid molecules on your computer for advanced users
       message("Select 'checkInvalid.csv' to manually exclude specific lipid molecules and click SAVE.")
@@ -2623,8 +2730,8 @@ filter_invalid <- function(data, group_info, invalid_data){
       message("If negative percentage is over 50% in a group, all the values in the group for the molecule will be transformed into NA.")
       message("If a molecule which negative percentage is over 50% for all groups, it will then be deleted.")
       # delete the molecule which negative values of replicates for all group are over 50% (all NA.)
-      deleted_neg_molec <- negs_all %>% filter_at(sample_list, all_vars(is.na(.))) 
-      deleted_molec <- negs_all %>% filter_at(sample_list, all_vars(.==0)) %>% bind_rows(., deleted_neg_molec)
+      deleted_neg_molec <- negs_all %>% filter_at(vars(all_of(sample_list)), all_vars(is.na(.))) 
+      deleted_molec <- negs_all %>% filter_at(vars(all_of(sample_list)), all_vars(.==0)) %>% bind_rows(., deleted_neg_molec)
       if(nrow(deleted_molec) != 0){
         deleted <- deleted_molec$LipidMolec %>% unlist() %>% sort() %>% paste0(., ", ", collapse = "") %>% substr(., 1, nchar(.)-2) 
         message("\n
