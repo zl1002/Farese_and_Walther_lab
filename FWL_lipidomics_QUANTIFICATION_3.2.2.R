@@ -6,7 +6,7 @@ message("\n Mean value for each group is used for quantification visualization."
 # sum lipid molecues by class
 aggregated_class <- filtered_lipidomics %>% 
   ungroup() %>% 
-  select(Class, sample_raw_list) %>% 
+  select(Class, all_of(sample_raw_list)) %>% 
   group_by(Class) %>% 
   summarise_at(sample_raw_list, list(~sum(.)))
 write_csv(aggregated_class, "data/Quantification/aggregated_class.csv")
@@ -29,8 +29,8 @@ total_plot <- plot_all(total_data, paras1, se=TRUE) +
   labs(title = "Total lipid classes", x = "Lipid Classes", y= "AUC (Area under curve)",
        fill = "Experiment Groups") +
   coord_flip() + 
-  guides(fill = guide_legend(reverse = TRUE))  +
-  add_scales()
+  guides(fill = guide_legend(reverse = TRUE))  
+
   #scale_y_continuous(labels = scientific_format(), expand = c(0, 0, 0.1,0))
 
 print(total_plot)
